@@ -1,0 +1,39 @@
+# Cone Shooter online
+
+Isi folder ini (3 file, jangan di-zip):
+- `index.html`  : game lengkap
+- `config.js`   : tempat mengisi URL dan key Supabase
+- `README.md`   : catatan ini
+
+## Langkah 1 - Supabase (server multiplayer)
+1. Buka supabase.com, login, klik New project (nama bebas, region terdekat, password bebas).
+2. Tunggu project selesai dibuat.
+3. Buka Project Settings > API. Salin **Project URL** dan **anon public key** (atau Publishable key).
+4. Tidak perlu membuat tabel atau menjalankan SQL. Game hanya memakai fitur Realtime.
+
+## Langkah 2 - GitHub (tempat menyimpan kode)
+1. Buat repository baru, misalnya `cone-shooter`.
+2. Pilih Add file > Upload files, unggah `index.html`, `config.js`, `README.md`, lalu Commit.
+3. Buka `config.js` di GitHub, klik ikon pensil, ganti dua teks `ISI_...` dengan URL dan key dari Supabase, lalu Commit.
+
+## Langkah 3 - Vercel (website)
+1. Buka vercel.com, login dengan GitHub.
+2. Add New > Project, pilih repository `cone-shooter`.
+3. Framework Preset: **Other**. Tidak perlu build command. Klik Deploy.
+4. Hasilnya link seperti `https://cone-shooter-xxxx.vercel.app`. Bagikan link itu ke teman.
+
+## Cara tes online
+1. Buka link di dua HP atau dua tab, beri nama berbeda.
+2. Klik Main > Multiplayer. Di halaman pertama klik Add Room (pilih FFA atau Death Match).
+3. Di perangkat kedua, ketuk room-nya untuk masuk. Teks di layar awal akan bertuliskan "Online: terhubung ke Supabase" kalau config benar.
+4. Host menekan Mulai (minimal 2 pemain).
+
+## Memperbarui game
+Ubah file di GitHub, Vercel otomatis membuat versi baru dalam beberapa menit.
+
+## Batasan saat ini
+- Online baru untuk mode **FFA** dan **Death Match**. Capture Flag dan Bomb belum online (masih di Vs BOT).
+- Room online tidak memakai bot. Pemain tidak bisa masuk saat room sedang bermain.
+- Paket gratis Supabase punya batas: 100 pesan per detik dan 200 koneksi untuk seluruh project. Pakai 2-4 pemain per room dan jangan terlalu banyak room sekaligus.
+- Project Supabase gratis bisa dijeda kalau lama tidak dipakai. Buka dashboard-nya untuk mengaktifkan lagi.
+- Penentuan kena tembak dilakukan di perangkat pemain yang ditembak, jadi cocok untuk main bareng teman, belum aman dari curang.

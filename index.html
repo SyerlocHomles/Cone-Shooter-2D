@@ -235,11 +235,12 @@ const MN=['FFA','Capture Flag','Bomb','Death Match'],WRN=['Semua senjata','Tanpa
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const myName=()=>($('pname').value.trim()||'Pemain');
 let multi=false,wrule=0,L=null,chat=[],chatS='a',pwTarget=null,nextId=1024;
-let rooms=[{id:1021,host:'Budi',title:'Santai',mode:0,map:'Arena 1',wrule:0,bots:1,pw:'',st:'Menunggu',r:[2,5],b:[1,5]},{id:1022,host:'Sari',title:'Bomb Pro',mode:2,map:'Arena 1',wrule:1,bots:0,pw:'123',st:'Bermain',r:[4,5],b:[4,5]},{id:1023,host:'Andi',title:'Rebut Bendera',mode:1,map:'Arena 1',wrule:0,bots:1,pw:'',st:'Menunggu',r:[1,3],b:[2,3]}];
+let rooms=[];const roomsDemo=[{id:1021,host:'Budi',title:'Santai',mode:0,map:'Arena 1',wrule:0,bots:1,pw:'',st:'Menunggu',r:[2,5],b:[1,5]},{id:1022,host:'Sari',title:'Bomb Pro',mode:2,map:'Arena 1',wrule:1,bots:0,pw:'123',st:'Bermain',r:[4,5],b:[4,5]},{id:1023,host:'Andi',title:'Rebut Bendera',mode:1,map:'Arena 1',wrule:0,bots:1,pw:'',st:'Menunggu',r:[1,3],b:[2,3]}];
 function limitL(a){const x=a.slice();if(wrule===1&&WP[x[0]].cat==='sniper')x[0]=WP.findIndex(w=>w.n==='M4A1');if(wrule===2)x[0]=x[1];return x;}
 function show(id){['home','menu','mp','cr','lobby'].forEach(s=>{$(s).hidden=(s!==id);});}
 function renderRooms(){
   const el=$('rlist');el.innerHTML='';
+  if(!(NET.on?(NET.rooms||[]):rooms).length){el.innerHTML='<small>Belum ada room. Klik Add Room untuk membuat.</small>';return;}
   (NET.on?(NET.rooms||[]):rooms).forEach(r=>{
     const d=document.createElement('div');d.className='rrow';
     d.innerHTML='<b>#'+r.id+'</b> '+((r.pw||r.pwh)?'\uD83D\uDD12 ':'')+'<b>'+esc(r.title)+'</b> ('+MN[r.mode]+')<br><small>Host: '+esc(r.host)+' | Merah '+r.r[0]+'/'+r.r[1]+' | Biru '+r.b[0]+'/'+r.b[1]+' | '+r.st+'</small>';
@@ -364,7 +365,7 @@ function spawn(f){
   if(mode>=1){const b=BASE[f.team];x=b.x+(Math.random()-.5)*130;y=b.y+(Math.random()-.5)*130;if(hitWall(x,y,16)){x=b.x;y=b.y;}}
   f.x=x;f.y=y;f.hp=100;f.alive=true;f.prot=3;f.cd=.4;f.mf=0;
   if(f.bot){f.loadout=[rndW(0),rndW(1),rndW(2)];f.slot=0;f.wpn=f.loadout[0];f.rlT=0;f.bm=undefined;f.kit=Math.random()<0.8;if(mode>=1)f.armor=Math.random()<0.6?100:0;}
-  if(!f.bot){const baseL=mode>=1?KIT():limitL(selL);f.loadout=baseL.map((x,i)=>(mode>=1&&f.buy&&f.buy[i]!=null)?f.buy[i]:x);f.slot=0;f.wpn=f.loadout[0];f.am=f.loadout.map(i=>WP[i].mag||0);f.rlT=0;updW();$('dead').hidden=true;if(mode===0)inv={he:1,smoke:1,bsmoke:0,flash:1,molo:1,c4:0};updG();f.buyT=mode>=1?5:0;f.cls=selC;const c=CL[selC];f.hp=c.hp;f.maxhp=c.hp;HMIN=c.hmin;HMAX=c.hmax;RMIN=c.rmin;RMAX=c.rmax;}
+  if(!f.bot){const baseL=mode>=1?KIT():limitL(selL);f.loadout=baseL.map((x,i)=>(mode>=1&&f.buy&&f.buy[i]!=null)?f.buy[i]:x);f.slot=0;f.wpn=f.loadout[0];f.am=f.loadout.map(i=>WP[i].mag||0);f.rlT=0;updW();$('dead').hidden=true;if(mode===0)inv={he:1,smoke:1,bsmoke:0,flash:1,molo:1,c4:0};updG();f.buyT=mode>=1?15:0;f.cls=selC;const c=CL[selC];f.hp=c.hp;f.maxhp=c.hp;HMIN=c.hmin;HMAX=c.hmax;RMIN=c.rmin;RMAX=c.rmax;}
 }
 function start(){
   TT=1;F=NETG?netFighters():(mode>=1?Array.from({length:tsz*2},(_,i)=>i):[0,1,2,3,4,5]).map(mk);bullets=[];state='play';TS=[0,0];FL=mode===1?[mkFlag(0),mkFlag(1)]:[];BM=null;
@@ -949,7 +950,7 @@ function netLobbyJoin(){
   const ch=NET.cli.channel('lobby',{config:{presence:{key:myUid}}});
   ch.on('presence',{event:'sync'},()=>{
     const st=ch.presenceState(),out=[];
-    for(const k in st){(st[k]||[]).forEach(m=>{if(m.r){try{const R=JSON.parse(m.r);R.net=true;out.push(R);}catch(e){}}});}
+    for(const k in st){(st[k]||[]).forEach(m=>{if(m.r){try{const R=JSON.parse(m.r);R.net=true;if((R.r[0]+R.b[0])>0)out.push(R);}catch(e){}}});}
     NET.rooms=out;if(!$('mp').hidden)renderRooms();
   });
   ch.subscribe(s=>{if(s==='SUBSCRIBED'){NET.lobbySub=true;netLobbyTrack();}});
@@ -997,6 +998,10 @@ function netPresence(){
   pl.sort((a,b)=>((b.host?1:0)-(a.host?1:0))||(a.uid<b.uid?-1:1));
   let me=pl.find(p=>p.uid===myUid);
   if(!me){me=L.me;pl.push(me);}
+  if(pl.length&&!pl.some(p=>p.host)&&pl[0]===me&&!NET.isHost){
+    NET.isHost=true;me.host=true;L.host=true;L.room.host=me.name;L.room.hostUid=myUid;NET.R=L.room;
+    netLobbyJoin();netTrackMe();netLobbyTrack();
+  }
   L.players=pl;L.me=me;
   if(NETG&&state==='play'){
     const present=new Set(pl.map(p=>p.uid));

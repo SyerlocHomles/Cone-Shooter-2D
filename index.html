@@ -419,30 +419,57 @@ $('again').onclick=()=>{$('jumpb').hidden=true;$('reloadb').hidden=true;$('pk').
 
 function mk(i){return{id:i,bot:i>0,nm:i?'Bot '+i:myName(),cash:800,buy:[null,null,null],armor:0,kit:false,nvg:false,team:mode>=1?((i<tsz)===(selS===0)?1:0):-1,role:(i%5)%2===0?'d':'a',x:0,y:0,hp:100,alive:false,cd:0,score:0,wpn:0,respawnT:0,prot:0,aim:-1.57,wa:0,wt:0,mf:0,moving:false};}
 function spawn(f){
-  let x,y,t=0;
-  if(NETG&&(mode===0||mode===3)){
-    // The map's exact center is a solid wall. Pick a safe point around it
-    // and validate both wall collision and separation from already spawned players.
-    const idx=Math.max(0,NETG.players.findIndex(p=>p.u===f.uid));
-    const total=Math.max(1,NETG.players.length),baseA=2*Math.PI*idx/total;
-    let placed=false;
-    for(let n=0;n<350&&!placed;n++){
-      const a=baseA+(Math.random()-.5)*0.8;
-      const rad=300+Math.random()*190;
-      const tx=WW/2+Math.cos(a)*rad,ty=WH/2+Math.sin(a)*rad;
-      if(hitWall(tx,ty,30))continue;
-      if(F.some(o=>o!==f&&o.alive&&Math.hypot(o.x-tx,o.y-ty)<145))continue;
-      x=tx;y=ty;placed=true;
+  let x=0,y=0;
+  // Semua mode memakai validasi posisi yang sama: berada di dalam map,
+  // tidak menabrak wall, dan tidak spawn tepat di atas pemain lain.
+  const validSpawn=(px,py,minGap=0,r=22)=>{
+    if(px<r+35||px>WW-r-35||py<r+35||py>WH-r-35)return false;
+    if(hitWall(px,py,r))return false;
+    return !F.some(o=>o!==f&&o.alive&&Math.hypot(o.x-px,o.y-py)<minGap);
+  };
+  const randomMapSpawn=()=>{
+    // FFA: acak di seluruh area peta, bukan hanya lingkaran di tengah.
+    for(const gap of [260,170,90,0]){
+      for(let n=0;n<650;n++){
+        const px=80+Math.random()*(WW-160);
+        const py=80+Math.random()*(WH-160);
+        if(validSpawn(px,py,gap,22)){x=px;y=py;return true;}
+      }
     }
-    if(!placed){
-      do{x=80+Math.random()*(WW-160);y=80+Math.random()*(WH-160);t++;}
-      while((hitWall(x,y,25)||F.some(o=>o!==f&&o.alive&&Math.hypot(o.x-x,o.y-y)<145))&&t<500);
+    return false;
+  };
+  const teamBaseSpawn=()=>{
+    // Mode tim (termasuk Death Match): tetap di area BASE tim sendiri.
+    const b=BASE[f.team]||BASE[0];
+    for(const spread of [95,155,230]){
+      for(const gap of [65,42,22,0]){
+        for(let n=0;n<260;n++){
+          const a=Math.random()*Math.PI*2;
+          const rad=Math.sqrt(Math.random())*spread;
+          const px=b.x+Math.cos(a)*rad;
+          const py=b.y+Math.sin(a)*rad;
+          if(validSpawn(px,py,gap,22)){x=px;y=py;return true;}
+        }
+      }
     }
+    // Fallback tetap dekat markas dan tidak berada di dalam tembok.
+    for(let n=0;n<500;n++){
+      const px=b.x+(Math.random()-.5)*300;
+      const py=b.y+(Math.random()-.5)*300;
+      if(validSpawn(px,py,0,20)){x=px;y=py;return true;}
+    }
+    x=b.x;y=b.y;return true;
+  };
+
+  if(mode===0){
+    // FFA, offline maupun online: seluruh peta.
+    if(!randomMapSpawn()){x=WW/2;y=WH/2;}
+  }else if(mode>=1){
+    teamBaseSpawn();
   }else{
-    do{x=80+Math.random()*(WW-160);y=80+Math.random()*(WH-160);t++;}
-    while((hitWall(x,y,22)||F.some(o=>o!==f&&o.alive&&Math.hypot(o.x-x,o.y-y)<450))&&t<60);
-    if(mode>=1){const b=BASE[f.team];x=b.x+(Math.random()-.5)*130;y=b.y+(Math.random()-.5)*130;if(hitWall(x,y,16)){x=b.x;y=b.y;}}
+    if(!randomMapSpawn()){x=WW/2;y=WH/2;}
   }
+
   f.x=x;f.y=y;f._px=x;f._py=y;f._vx=0;f._vy=0;f.hp=100;f.alive=true;f.prot=3;f.cd=.4;f.mf=0;f.rlT=0;
   if(f.bot){f.loadout=[rndW(0),rndW(1),rndW(2)];f.slot=0;f.wpn=f.loadout[0];initAmmo(f);f.kit=Math.random()<0.8;if(mode>=1)f.armor=Math.random()<0.6?100:0;}
   if(!f.bot){const baseL=mode>=1?KIT():limitL(selL);f.loadout=baseL.map((x,i)=>(mode>=1&&f.buy&&f.buy[i]!=null)?f.buy[i]:x);f.slot=0;f.wpn=f.loadout[0];initAmmo(f);updW();$('dead').hidden=true;if(mode===0)inv={he:1,smoke:1,bsmoke:0,flash:1,molo:1,c4:0};updG();f.buyT=mode>=1?15:0;f.cls=selC;const c=CL[selC];f.hp=c.hp;f.maxhp=c.hp;HMIN=c.hmin;HMAX=c.hmax;RMIN=c.rmin;RMAX=c.rmax;}

@@ -421,9 +421,23 @@ function mk(i){return{id:i,bot:i>0,nm:i?'Bot '+i:myName(),cash:800,buy:[null,nul
 function spawn(f){
   let x,y,t=0;
   if(NETG&&(mode===0||mode===3)){
+    // The map's exact center is a solid wall. Pick a safe point around it
+    // and validate both wall collision and separation from already spawned players.
     const idx=Math.max(0,NETG.players.findIndex(p=>p.u===f.uid));
-    const total=Math.max(1,NETG.players.length),a=2*Math.PI*idx/total,rad=65+(idx%3)*55;
-    x=WW/2+Math.cos(a)*rad;y=WH/2+Math.sin(a)*rad;
+    const total=Math.max(1,NETG.players.length),baseA=2*Math.PI*idx/total;
+    let placed=false;
+    for(let n=0;n<350&&!placed;n++){
+      const a=baseA+(Math.random()-.5)*0.8;
+      const rad=300+Math.random()*190;
+      const tx=WW/2+Math.cos(a)*rad,ty=WH/2+Math.sin(a)*rad;
+      if(hitWall(tx,ty,30))continue;
+      if(F.some(o=>o!==f&&o.alive&&Math.hypot(o.x-tx,o.y-ty)<145))continue;
+      x=tx;y=ty;placed=true;
+    }
+    if(!placed){
+      do{x=80+Math.random()*(WW-160);y=80+Math.random()*(WH-160);t++;}
+      while((hitWall(x,y,25)||F.some(o=>o!==f&&o.alive&&Math.hypot(o.x-x,o.y-y)<145))&&t<500);
+    }
   }else{
     do{x=80+Math.random()*(WW-160);y=80+Math.random()*(WH-160);t++;}
     while((hitWall(x,y,22)||F.some(o=>o!==f&&o.alive&&Math.hypot(o.x-x,o.y-y)<450))&&t<60);
@@ -1177,12 +1191,12 @@ function netTick(dt){
   if(!NETG||!NET.room||!F.length)return;
   NET.nt-=dt;if(NET.nt>0)return;NET.nt=0.125;
   const P=F[0];
-  netSend('st',{u:myUid,x:Math.round(P.x),y:Math.round(P.y),a:+P.aim.toFixed(2),h:Math.round(P.hp),al:P.alive?1:0,w:P.wpn,s:P.slot,la:P.loadout,am:P.am,rs:P.reserve,rl:P.reloadsLeft,mv:P.moving?1:0,cr:P.cr?1:0,j:P.jt>0?+P.jt.toFixed(2):0,ar:Math.round(P.armor||0),pr:P.prot>0?1:0,iv:[inv.he,inv.smoke,inv.bsmoke,inv.flash,inv.molo,inv.c4],k:P.kit?1:0});
+  netSend('st',{u:myUid,x:Math.round(P.x),y:Math.round(P.y),a:+P.aim.toFixed(2),h:Math.round(P.hp),sc:Math.round(P.score||0),al:P.alive?1:0,w:P.wpn,s:P.slot,la:P.loadout,am:P.am,rs:P.reserve,rl:P.reloadsLeft,mv:P.moving?1:0,cr:P.cr?1:0,j:P.jt>0?+P.jt.toFixed(2):0,ar:Math.round(P.armor||0),pr:P.prot>0?1:0,iv:[inv.he,inv.smoke,inv.bsmoke,inv.flash,inv.molo,inv.c4],k:P.kit?1:0});
 }
 function netOnSt(d){
   const f=byUid(d.u);if(!f||!f.net)return;
   if(f.tx===undefined){f.x=d.x;f.y=d.y;}
-  f.tx=d.x;f.ty=d.y;f.aim=d.a;f.hp=d.h;f.wpn=d.w;if(Number.isInteger(d.s))f.slot=d.s;if(Array.isArray(d.la))f.loadout=d.la.slice();if(Array.isArray(d.am))f.am=d.am.slice();if(Array.isArray(d.rs))f.reserve=d.rs.slice();if(Array.isArray(d.rl))f.reloadsLeft=d.rl.slice();f.moving=!!d.mv;f.cr=!!d.cr;f.jt=d.j||0;f.armor=d.ar;f.prot=d.pr?1:0;f.inv=d.iv;f.kit=!!d.k;
+  f.tx=d.x;f.ty=d.y;f.aim=d.a;f.hp=d.h;if(Number.isFinite(d.sc))f.score=d.sc;f.wpn=d.w;if(Number.isInteger(d.s))f.slot=d.s;if(Array.isArray(d.la))f.loadout=d.la.slice();if(Array.isArray(d.am))f.am=d.am.slice();if(Array.isArray(d.rs))f.reserve=d.rs.slice();if(Array.isArray(d.rl))f.reloadsLeft=d.rl.slice();f.moving=!!d.mv;f.cr=!!d.cr;f.jt=d.j||0;f.armor=d.ar;f.prot=d.pr?1:0;f.inv=d.iv;f.kit=!!d.k;
   if(d.al&&!f.alive){f.alive=true;f.dAnim=undefined;}
   if(!d.al&&f.alive){f.alive=false;f.dAnim=0;}
 }
@@ -1628,9 +1642,9 @@ function draw(){
   ctx.fillStyle='#e44';ctx.fillRect(12,84,140*Math.max(0,P.hp)/(P.maxhp||100),12);
   ctx.fillStyle='#fff';ctx.font='bold 13px system-ui';ctx.textAlign='left';
   const best=Math.max(...F.slice(1).map(f=>f.score));
-  ctx.fillText(mode===2?'Ronde '+rnd+'  Biru '+TS[0]+' Merah '+TS[1]+'  Target '+target+'  '+(P.team===TT?'Terrorist':'Counter-T'):mode>=1?'Merah '+TS[1]+'  Biru '+TS[0]+'  Target '+target:'Poin kamu '+P.score+' / '+target+'   Bot terbaik '+best,12,112);
+  ctx.fillText(mode===2?'Ronde '+rnd+'  Biru '+TS[0]+' Merah '+TS[1]+'  Target '+target+'  '+(P.team===TT?'Terrorist':'Counter-T'):mode>=1?'Merah '+TS[1]+'  Biru '+TS[0]+'  Target '+target:'Poin kamu '+P.score+' / '+target+'   '+(NETG?'Pemain teratas ':'Bot terbaik ')+best,12,112);
   const curAmmo=ammoText(P);
-  ctx.fillText(WP[P.wpn].n+(WP[P.wpn].mag?' '+(P.rlT>0?'Reload...':curAmmo):'')+' | '+CL[P.cls||0].n,12,130);
+  ctx.fillText(WP[P.wpn].n+(WP[P.wpn].mag?' '+(P.rlT>0?'Reload...':curAmmo):'')+' | Kelas: '+CL[P.cls||0].n,12,130);
   if(WP[P.wpn].mag&&curAmmo==='0/0'){ctx.fillStyle='#ff7575';ctx.font='bold 12px system-ui';ctx.fillText('AMUNISI HABIS — cari atau beli senjata',12,164);}
   if(mode>=1)for(let t=0;t<2;t++){ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(W/2-84+(1-t)*86,6,80,10);ctx.fillStyle=t?'#e24b4b':'#4b8be2';ctx.fillRect(W/2-84+(1-t)*86,6,80*Math.min(1,TS[t]/target),10);}
   if(mode===2&&BM){

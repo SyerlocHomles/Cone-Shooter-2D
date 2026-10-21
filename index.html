@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Cone Shooter</title>
 <script src="config.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 html,body{margin:0;height:100%;background:#111;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none;font-family:system-ui,sans-serif;color:#fff}
 canvas{display:block;width:100%;height:100%}
@@ -129,7 +129,15 @@ addEventListener('resize',resize);resize();
 const WW=3000,WH=2000;let RMIN=300,RMAX=640,HMIN=0.11,HMAX=0.7;const myUid=Math.random().toString(36).slice(2,8);
 const NET={on:false,cli:null,lobby:null,room:null,rooms:[],isHost:false,R:null,lobbySub:false,nt:0};
 let NETG=null;
-try{if(window.supabase&&window.SUPABASE_URL&&window.SUPABASE_KEY&&String(window.SUPABASE_URL).indexOf('http')===0){NET.cli=window.supabase.createClient(window.SUPABASE_URL,window.SUPABASE_KEY);NET.on=true;}}catch(e){NET.on=false;}
+try{if(window.supabase&&window.SUPABASE_URL&&window.SUPABASE_KEY&&String(window.SUPABASE_URL).indexOf('http')===0){NET.cli=window.supabase.createClient(window.SUPABASE_URL,window.SUPABASE_KEY);NET.on=true;}}catch(e){NET.on=false;console.error('[Supabase] Gagal membuat client:',e);}
+function netDiag(area,status,err){
+  const msg='Realtime '+area+': '+status+(err&&err.message?' — '+err.message:'');
+  console.log('[Supabase]',msg,err||'');
+  if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED')console.error('[Supabase Realtime]',area,status,err||'');
+  if($('netinfo'))$('netinfo').textContent=msg;
+  if($('mpmsg')&&!$('mp').hidden)$('mpmsg').textContent=msg;
+  if($('lhint')&&!$('lobby').hidden)$('lhint').textContent=msg;
+}
 let LOG=[],darkMode=false,PKn=null;
 let tsz=5;let PT=[],PU=[],PU_T=6,AC=null,sndOn=true;
 let Z=1,VW=0,VH=0;let range=460,sneak=false;let G=[],SM=[],inv={he:0,smoke:0,bsmoke:0,flash:0,molo:0,c4:0};let gAim=null,gT=null,wasAK=false,wasMD=false;
@@ -345,7 +353,7 @@ $('shopb').onpointerdown=e=>{e.preventDefault();openShop();};
 $('shopx').onclick=()=>{$('shop').hidden=true;};
 $('pkf').onpointerdown=e=>{e.preventDefault();pickW(false);};
 $('pkg').onpointerdown=e=>{e.preventDefault();pickW(true);};
-$('netinfo').textContent=NET.on?'Online: terhubung ke Supabase. Multiplayer asli aktif (mode FFA dan Death Match).':'Offline: Multiplayer masih contoh. Isi config.js untuk mengaktifkan online.';
+$('netinfo').textContent=NET.on?'Konfigurasi Supabase terbaca; status Realtime belum dicek. Buka Multiplayer untuk tes koneksi.':'Offline: konfigurasi Supabase tidak terbaca. Periksa config.js.';
 if(NET.on){[...$('cMode').options].forEach(o=>{if(o.value==='1'||o.value==='2')o.remove();});$('sB').hidden=true;$('ladd').hidden=true;}
 $('go').onclick=start;
 $('wsw').onpointerdown=e=>{e.preventDefault();cycleSlot();};
@@ -365,7 +373,7 @@ function spawn(f){
   if(mode>=1){const b=BASE[f.team];x=b.x+(Math.random()-.5)*130;y=b.y+(Math.random()-.5)*130;if(hitWall(x,y,16)){x=b.x;y=b.y;}}
   f.x=x;f.y=y;f.hp=100;f.alive=true;f.prot=3;f.cd=.4;f.mf=0;
   if(f.bot){f.loadout=[rndW(0),rndW(1),rndW(2)];f.slot=0;f.wpn=f.loadout[0];f.rlT=0;f.bm=undefined;f.kit=Math.random()<0.8;if(mode>=1)f.armor=Math.random()<0.6?100:0;}
-  if(!f.bot){const baseL=mode>=1?KIT():limitL(selL);f.loadout=baseL.map((x,i)=>(mode>=1&&f.buy&&f.buy[i]!=null)?f.buy[i]:x);f.slot=0;f.wpn=f.loadout[0];f.am=f.loadout.map(i=>WP[i].mag||0);f.rlT=0;updW();$('dead').hidden=true;if(mode===0)inv={he:1,smoke:1,bsmoke:0,flash:1,molo:1,c4:0};updG();f.buyT=mode>=1?15:0;f.cls=selC;const c=CL[selC];f.hp=c.hp;f.maxhp=c.hp;HMIN=c.hmin;HMAX=c.hmax;RMIN=c.rmin;RMAX=c.rmax;}
+  if(!f.bot){const baseL=mode>=1?KIT():limitL(selL);f.loadout=baseL.map((x,i)=>(mode>=1&&f.buy&&f.buy[i]!=null)?f.buy[i]:x);f.slot=0;f.wpn=f.loadout[0];f.am=f.loadout.map(i=>WP[i].mag||0);f.rlT=0;updW();$('dead').hidden=true;if(mode===0)inv={he:1,smoke:1,bsmoke:0,flash:1,molo:1,c4:0};updG();f.buyT=mode>=1?5:0;f.cls=selC;const c=CL[selC];f.hp=c.hp;f.maxhp=c.hp;HMIN=c.hmin;HMAX=c.hmax;RMIN=c.rmin;RMAX=c.rmax;}
 }
 function start(){
   TT=1;F=NETG?netFighters():(mode>=1?Array.from({length:tsz*2},(_,i)=>i):[0,1,2,3,4,5]).map(mk);bullets=[];state='play';TS=[0,0];FL=mode===1?[mkFlag(0),mkFlag(1)]:[];BM=null;
@@ -942,7 +950,7 @@ function buy(kind,key){
   buildShop();
 }
 async function sha(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('').slice(0,16);}
-function netSend(ev,pl){const c=NET.room;if(!c)return;try{c.send({type:'broadcast',event:ev,payload:pl});}catch(e){}}
+function netSend(ev,pl){const c=NET.room;if(!c)return;try{Promise.resolve(c.send({type:'broadcast',event:ev,payload:pl})).then(s=>{if(s!=='ok')console.warn('[Supabase Broadcast]',ev,s);}).catch(e=>console.error('[Supabase Broadcast]',ev,e));}catch(e){console.error('[Supabase Broadcast]',ev,e);}}
 function byUid(u){return F.find(f=>f.uid===u);}
 let lobbyT=0;
 function netLobbyJoin(){
@@ -953,7 +961,11 @@ function netLobbyJoin(){
     for(const k in st){(st[k]||[]).forEach(m=>{if(m.r){try{const R=JSON.parse(m.r);R.net=true;if((R.r[0]+R.b[0])>0)out.push(R);}catch(e){}}});}
     NET.rooms=out;if(!$('mp').hidden)renderRooms();
   });
-  ch.subscribe(s=>{if(s==='SUBSCRIBED'){NET.lobbySub=true;netLobbyTrack();}});
+  ch.subscribe((s,err)=>{
+    netDiag('LOBBY',s,err);
+    if(s==='SUBSCRIBED'){NET.lobbySub=true;netLobbyTrack();}
+    else if(s==='CHANNEL_ERROR'||s==='TIMED_OUT'||s==='CLOSED')NET.lobbySub=false;
+  });
   NET.lobby=ch;
 }
 function netLobbyTrack(){
@@ -972,7 +984,14 @@ function netEnter(R,isHost){
   NET.isHost=isHost;NET.R=R;R.net=true;
   const ch=NET.cli.channel('room:'+R.id,{config:{presence:{key:myUid},broadcast:{self:false}}});
   NET.room=ch;
-  const me0={uid:myUid,name:myName(),team:(isHost||R.r[0]<R.r[1])?'r':'b',cls:selC,host:isHost};
+  let joinTeam='r';
+  if(!isHost){
+    const redOpen=R.r[0]<R.r[1],blueOpen=R.b[0]<R.b[1];
+    if(!redOpen&&blueOpen)joinTeam='b';
+    else if(redOpen&&blueOpen)joinTeam=R.r[0]<=R.b[0]?'r':'b';
+    else if(!redOpen&&!blueOpen){netDiag('ROOM','ROOM_FULL');return;}
+  }
+  const me0={uid:myUid,name:myName(),team:joinTeam,cls:selC,host:isHost};
   L={room:R,host:isHost,players:[me0],me:me0};
   ch.on('presence',{event:'sync'},()=>netPresence());
   ch.on('broadcast',{event:'chat'},m=>{chat.push(m.payload);if(L)renderChat();});
@@ -983,10 +1002,15 @@ function netEnter(R,isHost){
   ch.on('broadcast',{event:'kill'},m=>netOnKill(m.payload));
   ch.on('broadcast',{event:'mh'},m=>netOnMh(m.payload));
   ch.on('broadcast',{event:'gren'},m=>netOnGren(m.payload));
-  ch.subscribe(async s=>{
+  ch.subscribe(async (s,err)=>{
+    netDiag('ROOM #'+R.id,s,err);
     if(s==='SUBSCRIBED'){
-      await ch.track({name:me0.name,team:me0.team,cls:me0.cls,host:isHost});
-      openLobby();
+      try{
+        const trackStatus=await ch.track({name:me0.name,team:me0.team,cls:me0.cls,host:isHost});
+        console.log('[Supabase] ROOM presence track:',trackStatus);
+        if(trackStatus!=='ok')netDiag('ROOM PRESENCE',String(trackStatus));
+        openLobby();
+      }catch(e){netDiag('ROOM PRESENCE','ERROR',e);console.error(e);}
     }
   });
   netLobbyTrack();
